@@ -1,0 +1,37 @@
+# 类人脑双系统全闭环AI架构 - Docker Compose配置
+# Human-Like Brain Dual-System Full-Loop AI Architecture - Docker Compose
+
+version: '3.8'
+
+services:
+  brain-like-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brain-like-ai-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - MODEL_PATH=/app/models/Qwen3-0.8B
+    volumes:
+      - ./models:/app/models
+      - ./configs:/app/configs
+      - ./data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # 可选：模型下载服务
+  model-downloader:
+    image: huggingface/downloader:latest
+    container_name: model-downloader
+    volumes:
+      - ./models:/models
+    environment:
+      - HF_MODEL=Qwen/Qwen3-0.8B
+      - HF_LOCAL_DIR=/models/Qwen3-0.8B
+    profiles:
+      - download
