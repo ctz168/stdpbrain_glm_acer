@@ -1,0 +1,7 @@
+{
+  "model_path": "/home/z/my-project/download/brain_like_ai/models/Qwen3.5-0.8B",
+  "output_path": "/home/z/my-project/download/brain_like_ai/output/integrated_trained",
+  "best_loss": 0.05676327379686492,
+  "total_steps": 54,
+  "last_update": "2026-03-10T05:10:44.618101"
+}

@@ -1,8 +1,1 @@
-{
-  "base_model": "/home/z/my-project/download/brain_like_ai/models/Qwen3.5-0.8B",
-  "training_time": "2026-03-10T04:48:52.399939",
-  "epochs": 10,
-  "data_count": 14,
-  "best_loss": 0.04830387447561536,
-  "trainable_params": 38543744
-}
+{"training_time": "2026-03-10T05:09:14.575243", "data_count": 9}
