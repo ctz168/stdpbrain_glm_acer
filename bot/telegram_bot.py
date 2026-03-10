@@ -1,12 +1,5 @@
 """
 类人脑双系统全闭环AI架构 - Telegram Bot服务 (完整集成版)
-Complete Integrated Brain-Like AI - Telegram Bot Service
-
-集成所有核心模块：
-1. 100Hz高刷新引擎
-2. STDP在线学习
-3. 海马体记忆系统
-4. 自优化闭环（自生成/自博弈/自评判）
 """
 
 import asyncio
@@ -43,9 +36,7 @@ def get_engine():
     if _engine is None:
         from core.complete_integrated_engine import CompleteIntegratedEngine, BrainLikeConfig
         config = BrainLikeConfig(
-            enable_self_generation=True,
-            enable_self_play=True,
-            enable_self_judgment=True
+            max_new_tokens=512  # 增加输出长度
         )
         _engine = CompleteIntegratedEngine(MODEL_PATH, config)
     return _engine
@@ -96,7 +87,6 @@ async def run_bot():
         stats = engine.get_statistics()
         
         text = "📊 *系统统计*\n\n"
-        
         text += f"*总周期数:* {stats.get('cycle_count', 0)}\n\n"
         
         if 'stdp' in stats:
@@ -135,11 +125,11 @@ async def run_bot():
         
         try:
             response_text = ""
-            chunk_size = 20
+            chunk_size = 30
             last_sent_len = 0
             message = None
             
-            for token in engine.generate_stream(user_message, max_new_tokens=300):
+            for token in engine.generate_stream(user_message):
                 response_text += token
                 
                 if len(response_text) - last_sent_len >= chunk_size:
