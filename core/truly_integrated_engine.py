@@ -174,7 +174,7 @@ class TrulyIntegratedEngine:
                 # 2. 从海马体检索相关记忆
                 anchors = self.refresh_engine.hippocampus.recall_memories(cue_feature, top_k=3)
                 if anchors:
-                    mem_texts = [a['memory_unit'].semantic_pointer for a in anchors if a['memory_unit'].semantic_pointer]
+                    mem_texts = [a['semantic_pointer'] for a in anchors if a['semantic_pointer']]
                     if mem_texts:
                         # 仅保留最近的几个，模拟短期记忆
                         memory_context = "\n【海马体关联记忆(Context)】:\n" + "\n".join([f"- {t}" for t in mem_texts[-3:]])

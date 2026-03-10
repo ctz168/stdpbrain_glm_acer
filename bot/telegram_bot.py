@@ -109,8 +109,8 @@ async def run_bot():
                 if "<think>" in display_text and "</think>" not in display_text:
                    display_text = display_text + "\n\n(正在思考中...)"
 
-                # 性能与风控平衡：1.0s 间隔，5字符增量
-                if current_time - last_edit_time > 1.0 or len(response_text) - last_edit_len > 5:
+                # 性能与风控平衡：2.0s 间隔，20字符增量 (防止 Flood Control)
+                if current_time - last_edit_time > 2.0 or len(response_text) - last_edit_len > 20:
                     try:
                         await message.edit_text(f"思考中...\n\n{display_text} ▌")
                         last_edit_time = current_time
