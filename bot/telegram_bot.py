@@ -94,20 +94,24 @@ async def run_bot():
         
         try:
             response_text = ""
-            chunk_size = 5
-            last_sent_len = 0
-            message = await update.message.reply_text("已收到！类脑引擎（Qwen3.5-0.8B）正在以100Hz刷新频率思考中，请稍候...")
+            import time
+            last_edit_time = time.time()
+            edit_interval = 1.5  # 至少间隔 1.5 秒更新一次，防止 Flood Control
+            
+            message = await update.message.reply_text("思考中...")
             
             for token in engine.generate_stream(user_message):
                 response_text += token
                 
-                if len(response_text) - last_sent_len >= chunk_size:
+                # 仅在时间间隔超过 edit_interval 时更新 UI
+                if time.time() - last_edit_time >= edit_interval:
                     try:
                         await message.edit_text(f"思考中...\n\n{response_text}")
-                        last_sent_len = len(response_text)
+                        last_edit_time = time.time()
                     except Exception:
                         pass
             
+            # 最后发一次完整的
             if response_text:
                 try:
                     await message.edit_text(response_text)
