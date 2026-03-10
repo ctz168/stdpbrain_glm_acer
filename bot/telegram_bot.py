@@ -104,19 +104,19 @@ async def run_bot():
             for token in engine.generate_stream(user_message):
                 response_text += token
                 
-                # 仅在时间间隔超过 edit_interval 且内容有显著变化时更新 UI
-                if time.time() - last_edit_time >= edit_interval and len(response_text) - last_edit_len >= 15:
+                current_time = time.time()
+                display_text = response_text
+                if "<think>" in display_text and "</think>" not in display_text:
+                   display_text = display_text + "\n\n(正在思考中...)"
+
+                # 性能与风控平衡：1.0s 间隔，5字符增量
+                if current_time - last_edit_time > 1.0 or len(response_text) - last_edit_len > 5:
                     try:
-                        # 确保 <think> 块在流式传输中可见
-                        display_text = response_text
-                        if "<think>" in display_text and "</think>" not in display_text:
-                           display_text = display_text + "\n\n(正在思考中...)"
-                        
-                        await message.edit_text(f"思考中...\n\n{display_text}")
-                        last_edit_time = time.time()
+                        await message.edit_text(f"思考中...\n\n{display_text} ▌")
+                        last_edit_time = current_time
                         last_edit_len = len(response_text)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"编辑消息略过: {e}")
             
             # 最后发一次完整的，务必去掉 "思考中..." 提示
             if response_text:

@@ -62,7 +62,14 @@ class TrulyIntegratedEngine:
         self.tokenizer = None
         self.refresh_engine = None
         
-        self.device = torch.device("cpu")
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
+        
+        logger.info(f"引擎运行设备: {self.device}")
         self._initialized = False
         self.stop_token_ids = []
     
@@ -336,22 +343,25 @@ class TrulyIntegratedEngine:
             )
     
     def _stdp_learn(self, hidden_state: torch.Tensor):
-        """STDP在线学习"""
+        """STDP在线学习 (矢量化优化版)"""
         # 计算激活强度
         activation = hidden_state.abs().mean().item()
         
         # 模拟时序差（正数表示LTP）
         delta_t = 5.0
         
-        # 计算更新
+        # 计算更新量
         update, update_type = self.refresh_engine.stdp.compute_update(delta_t, activation)
         
-        # 应用到动态权重
-        for name in self.refresh_engine.dynamic_weights:
-            if update_type == STDPType.LTP:
-                self.refresh_engine.dynamic_weights[name] += update * 0.0001
-            else:
-                self.refresh_engine.dynamic_weights[name] -= update * 0.0001
+        # 矢量化应用到所有动态权重 (避免 Python 循环)
+        # 这里的计算量极大，使用 torch 操作而非循环遍历
+        learning_rate = 0.0001
+        multiplier = learning_rate * update if update_type == STDPType.LTP else -learning_rate * update
+        
+        with torch.no_grad():
+            for name in self.refresh_engine.dynamic_weights:
+                # 直接在张量上操作
+                self.refresh_engine.dynamic_weights[name].add_(multiplier)
     
     def get_statistics(self) -> Dict:
         """获取统计信息"""
