@@ -1,5 +1,5 @@
 """
-类人脑双系统全闭环AI架构 - Telegram Bot服务 (完整集成版)
+类人脑双系统全闭环AI架构 - Telegram Bot服务 (完整集成版V2)
 """
 
 import asyncio
@@ -35,9 +35,7 @@ def get_engine():
     global _engine
     if _engine is None:
         from core.complete_integrated_engine import CompleteIntegratedEngine, BrainLikeConfig
-        config = BrainLikeConfig(
-            max_new_tokens=512  # 增加输出长度
-        )
+        config = BrainLikeConfig()
         _engine = CompleteIntegratedEngine(MODEL_PATH, config)
     return _engine
 
@@ -66,16 +64,13 @@ async def run_bot():
     
     async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
-            "🧠 *类人脑双系统AI架构 (完整集成版)*\n\n"
+            "🧠 *类人脑双系统AI架构 (完整集成版V2)*\n\n"
             "核心模块：\n"
             "• 100Hz高刷新 - 每10ms推理周期\n"
             "• STDP在线学习 - 边推理边更新\n"
             "• 海马体记忆 - 长期记忆存储\n"
-            "• 自优化闭环 - 三种模式自动切换\n\n"
-            "自优化模式：\n"
-            "• 自生成 - 多候选投票\n"
-            "• 自博弈 - 提案验证迭代\n"
-            "• 自评判 - 双候选选优\n\n"
+            "• 自优化闭环 - 三种模式自动切换\n"
+            "• 输入预处理 - 提取关键信息\n\n"
             "命令：\n"
             "/start - 开始\n"
             "/stats - 统计\n"
@@ -125,11 +120,11 @@ async def run_bot():
         
         try:
             response_text = ""
-            chunk_size = 30
+            chunk_size = 20
             last_sent_len = 0
             message = None
             
-            for token in engine.generate_stream(user_message):
+            for token in engine.generate_stream(user_message, max_new_tokens=200):
                 response_text += token
                 
                 if len(response_text) - last_sent_len >= chunk_size:
@@ -164,7 +159,7 @@ async def run_bot():
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    logger.info("🧠 类人脑AI Telegram Bot (完整集成版) 启动中...")
+    logger.info("🧠 类人脑AI Telegram Bot (完整集成版V2) 启动中...")
     
     await application.initialize()
     await application.start()
@@ -185,7 +180,7 @@ async def run_bot():
 
 def main():
     print("=" * 60)
-    print("🧠 类人脑双系统AI架构 - Telegram Bot (完整集成版)")
+    print("🧠 类人脑双系统AI架构 - Telegram Bot (完整集成版V2)")
     print("=" * 60)
     print(f"Bot Token: {TELEGRAM_BOT_TOKEN[:20]}...")
     print(f"Model Path: {MODEL_PATH}")
