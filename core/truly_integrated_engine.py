@@ -427,7 +427,7 @@ class TrulyIntegratedEngine:
     def generate_stream(
         self,
         prompt: str,
-        max_new_tokens: int = 512
+        max_new_tokens: int = 2048
     ) -> Generator[str, None, None]:
         """
         流式生成（带STDP学习）
@@ -451,9 +451,10 @@ class TrulyIntegratedEngine:
         )
         
         encodings = self.tokenizer(
-            input_text, return_tensors='pt', max_length=512, truncation=True
+            input_text, return_tensors='pt', max_length=1024, truncation=True
         )
         input_ids = encodings['input_ids'].to(self.device)
+        attention_mask = encodings['attention_mask'].to(self.device)
         
         # 生成
         generated_tokens = 0
@@ -464,6 +465,7 @@ class TrulyIntegratedEngine:
             with torch.no_grad():
                 outputs = self.model(
                     input_ids=input_ids if past_key_values is None else input_ids[:, -1:],
+                    attention_mask=attention_mask,
                     past_key_values=past_key_values,
                     use_cache=True,
                     output_hidden_states=True
@@ -476,31 +478,50 @@ class TrulyIntegratedEngine:
             # STDP学习
             self._stdp_learn(hidden_state)
             
-            # 惩罚重复 (Simple Repetition Penalty)
+            # 采样优化: Repetition Penalty + Temperature + Top-P
+            # 1. Repetition Penalty (1.1)
             for token_id in set(input_ids[0].tolist()):
-                if logits[0, token_id] < 0:
-                    logits[0, token_id] *= 1.2
+                score = logits[0, token_id]
+                if score > 0:
+                    logits[0, token_id] = score / 1.1
                 else:
-                    logits[0, token_id] /= 1.2
+                    logits[0, token_id] = score * 1.1
             
-            # 采样下一个token
-            next_token = logits.argmax(dim=-1, keepdim=True)
+            # 2. Temperature (0.7 for balance)
+            logits = logits / 0.7
             
-            # 检查结束 (多停止符检查)
-            if next_token.item() in self.stop_token_ids:
+            # 3. Top-P (0.9)
+            sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+            cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
+            sorted_indices_to_remove = cumulative_probs > 0.9
+            sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+            sorted_indices_to_remove[..., 0] = 0
+            indices_to_remove = sorted_indices[sorted_indices_to_remove]
+            logits[0, indices_to_remove] = -float('Inf')
+            
+            # 4. Prob Sampling
+            probs = torch.softmax(logits, dim=-1)
+            next_token = torch.multinomial(probs, num_samples=1)
+            
+            # 检查结束
+            token_id = next_token.item()
+            if token_id in self.stop_token_ids:
                 break
             
-            # 解码并输出
-            token_text = self.tokenizer.decode(next_token[0])
+            # 解码
+            token_text = self.tokenizer.decode([token_id], skip_special_tokens=False)
             
-            # 过滤残留的技术标签
-            if token_text.strip() == "<|im_end|>":
+            # 强行截断幻觉行为 (Base模型容易自动补全User对话)
+            if "<|im_start|>" in token_text or "<|im_end|>" in token_text:
+                break
+            if "User:" in token_text or "用户:" in token_text:
                 break
             
             yield token_text
             
             # 更新输入
             input_ids = torch.cat([input_ids, next_token], dim=-1)
+            attention_mask = torch.cat([attention_mask, torch.ones((1, 1), device=self.device)], dim=-1)
             generated_tokens += 1
             
             # 记忆编码
