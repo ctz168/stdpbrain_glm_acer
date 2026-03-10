@@ -96,22 +96,29 @@ async def run_bot():
             response_text = ""
             import time
             last_edit_time = time.time()
-            edit_interval = 1.5  # 至少间隔 1.5 秒更新一次，防止 Flood Control
+            edit_interval = 3.0  # 极度保守：3秒刷新一次，防止电报限制
+            last_edit_len = 0
             
             message = await update.message.reply_text("思考中...")
             
             for token in engine.generate_stream(user_message):
                 response_text += token
                 
-                # 仅在时间间隔超过 edit_interval 时更新 UI
-                if time.time() - last_edit_time >= edit_interval:
+                # 仅在时间间隔超过 edit_interval 且内容有显著变化时更新 UI
+                if time.time() - last_edit_time >= edit_interval and len(response_text) - last_edit_len >= 15:
                     try:
-                        await message.edit_text(f"思考中...\n\n{response_text}")
+                        # 确保 <think> 块在流式传输中可见
+                        display_text = response_text
+                        if "<think>" in display_text and "</think>" not in display_text:
+                           display_text = display_text + "\n\n(正在思考中...)"
+                        
+                        await message.edit_text(f"思考中...\n\n{display_text}")
                         last_edit_time = time.time()
+                        last_edit_len = len(response_text)
                     except Exception:
                         pass
             
-            # 最后发一次完整的
+            # 最后发一次完整的，务必去掉 "思考中..." 提示
             if response_text:
                 try:
                     await message.edit_text(response_text)

@@ -443,13 +443,34 @@ class TrulyIntegratedEngine:
                 yield "初始化失败"
                 return
         
-        # 构建输入
+        # 【核心架构原生约束】：海马体记忆召回 (Recall)
+        # 1. 首先对当前 prompt 进行特征提取，作为召回线索
+        memory_context = ""
+        try:
+            with torch.no_grad():
+                # 预先编码 prompt 以获得语义特征
+                tmp_enc = self.tokenizer(prompt, return_tensors='pt').to(self.device)
+                tmp_out = self.model(input_ids=tmp_enc['input_ids'], output_hidden_states=True)
+                # 取最后一层的均值作为语义线索
+                cue_feature = tmp_out.hidden_states[-1].mean(dim=1) 
+                
+                # 2. 从海马体检索相关记忆
+                anchors = self.refresh_engine.hippocampus.recall_memories(cue_feature, top_k=3)
+                if anchors:
+                    mem_texts = [a['memory_unit'].semantic_pointer for a in anchors if a['memory_unit'].semantic_pointer]
+                    if mem_texts:
+                        # 仅保留最近的几个，模拟短期记忆
+                        memory_context = "\n【海马体关联记忆(Context)】:\n" + "\n".join([f"- {t}" for t in mem_texts[-3:]])
+        except Exception as e:
+            logger.error(f"海马体召回失败: {e}")
+
         # 构建输入 (针对Base模型增加日期引导)
         current_time_str = time.strftime("%Y-%m-%d %H:%M:%S")
         input_text = (
             f"<|im_start|>system\n"
             f"当前日期和时间: {current_time_str}\n"
             f"你是一个类脑AI助手，由100Hz刷新频率的神经引擎驱动。请简洁地回答用户问题。\n\n"
+            f"{memory_context}\n\n"
             f"【推理规范】对于涉及金额、日期、数量的逻辑问题，必须严格执行：\n"
             f"1. 识别并提取所有数字和时间信息。\n"
             f"2. 判别各项费用的性质（租金、押金、服务费等）。\n"
@@ -587,9 +608,19 @@ class TrulyIntegratedEngine:
             attention_mask = torch.cat([attention_mask, torch.ones((1, 1), device=self.device)], dim=-1)
             generated_tokens += 1
             
-            # 记忆编码
-            self.refresh_engine.hippocampus.encode(
-                token_text, hidden_state, time.time() * 1000
+            # 【神经引擎实时动作】：海马体特征编码 (每个token)
+            self.refresh_engine.hippocampus.encode_episode(
+                hidden_state, time.time() * 1000, 
+                {'token': token_text}
+            )
+            
+        # 【核心架构原生约束】：对话结束后的整句记忆巩固
+        # 存入语义指针，方便后续回合通过 Recall 召回
+        if response_text.strip():
+            self.refresh_engine.hippocampus.encode_episode(
+                torch.randn(1, 4096).to(self.device), # 模拟语义嵌入
+                time.time() * 1000,
+                {'semantic_pointer': f"User: {prompt}\nAssistant: {response_text}"}
             )
     
     def _stdp_learn(self, hidden_state: torch.Tensor):
