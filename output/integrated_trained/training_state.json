@@ -3,9 +3,17 @@
     "batch_01_basic_calc",
     "batch_02_daily_monthly",
     "batch_03_complex_1",
-    "batch_04_complex_2"
+    "batch_04_complex_2",
+    "batch_05_deposit_1",
+    "batch_06_deposit_2",
+    "batch_07_hygiene_1",
+    "batch_08_hygiene_2",
+    "batch_09_comprehensive_1",
+    "batch_10_comprehensive_2",
+    "batch_11_reinforce_1",
+    "batch_12_reinforce_2"
   ],
-  "best_loss": 0.010987361427396536,
-  "total_steps": 110,
-  "last_update": "2026-03-10T05:39:18.959597"
+  "best_loss": 0.00757153274025768,
+  "total_steps": 345,
+  "last_update": "2026-03-10T05:43:54.498584"
 }
