@@ -35,7 +35,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Telegram Bot配置
 TELEGRAM_BOT_TOKEN = "8534413276:AAHzqgxVTOL2fapd8NV7UjppF4NXr1zSUek"
-TELEGRAM_CHAT_ID = "7234749146"  # FirstLandingMarsFederation
+TELEGRAM_CHAT_ID = "8398597279"  # FirstLandingMarsFederation
 
 
 def send_telegram_message(message: str):
