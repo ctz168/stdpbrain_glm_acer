@@ -1,0 +1,25 @@
+{
+  "training_time_seconds": 46.179970264434814,
+  "total_epochs": 2,
+  "losses": {
+    "epoch_1": {
+      "logical_reasoning": 9.637378025054932,
+      "mathematical_reasoning": 3.451448619365692,
+      "commonsense_reasoning": 0.5934865832328796,
+      "memory_test": 0.5187466144561768,
+      "language_understanding": 0.56332426071167,
+      "creative_thinking": 0.8211232721805573,
+      "instruction_following": 0.392173707485199
+    },
+    "epoch_2": {
+      "logical_reasoning": 0.7071852385997772,
+      "mathematical_reasoning": 0.35660237073898315,
+      "commonsense_reasoning": 0.2864454299211502,
+      "memory_test": 0.3001486323773861,
+      "language_understanding": 0.29960846304893496,
+      "creative_thinking": 0.5815806041161219,
+      "instruction_following": 0.2222232073545456
+    }
+  },
+  "timestamp": "2026-03-10T00:36:15.591595"
+}

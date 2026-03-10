@@ -1,0 +1,44 @@
+{
+  "overall_accuracy": 0.3939393939393939,
+  "total_correct": 13,
+  "total_questions": 33,
+  "evaluation_time_seconds": 65.4432258605957,
+  "category_scores": {
+    "logical_reasoning": {
+      "accuracy": 0.2,
+      "correct": 1,
+      "total": 5
+    },
+    "mathematical_reasoning": {
+      "accuracy": 1.0,
+      "correct": 8,
+      "total": 8
+    },
+    "commonsense_reasoning": {
+      "accuracy": 0.6,
+      "correct": 3,
+      "total": 5
+    },
+    "memory_test": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 4
+    },
+    "language_understanding": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 5
+    },
+    "creative_thinking": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 3
+    },
+    "instruction_following": {
+      "accuracy": 0.3333333333333333,
+      "correct": 1,
+      "total": 3
+    }
+  },
+  "timestamp": "2026-03-10T00:35:10.704343"
+}
