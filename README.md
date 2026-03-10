@@ -12,6 +12,18 @@
 
 ---
 
+<div align="center">
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ctz168/stdpbrain_glm_acer/blob/main/deploy_colab.ipynb)
+
+</div>
+
+## 🚀 快速开始 (Google Colab)
+
+点击上方 **Open In Colab** 按钮，即可在云端一键部署并运行类脑 AI Telegram Bot。只需准备好您的 `TELEGRAM_BOT_TOKEN` 即可开始。
+
+---
+
 ## 📖 项目简介
 
 本项目是一套完整的「海马体-新皮层双系统类人脑AI架构」，实现与人脑同源的**"刷新即推理、推理即学习、学习即优化、记忆即锚点"**全闭环智能能力。
