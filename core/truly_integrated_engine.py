@@ -113,17 +113,34 @@ class TrulyIntegratedEngine:
              if param.requires_grad:
                  self.refresh_engine.dynamic_weights[name] = torch.zeros_like(param.data) * 0.01
         
+        # CPU 性能优化：根据物理核心数设置线程
+        import multiprocessing
+        cpu_count = multiprocessing.cpu_count()
+        torch.set_num_threads(max(1, cpu_count // 2)) 
+        
         # 获取停止符
         self.stop_token_ids = [self.tokenizer.eos_token_id]
         im_end_id = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
         if im_end_id and im_end_id != self.tokenizer.unk_token_id:
             self.stop_token_ids.append(im_end_id)
+            
+        # 预存静态权重备份，用于融合缓存 (Fusion Cache)
+        self._static_weights_backup = {}
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                self._static_weights_backup[name] = param.data.detach().clone()
+        
+        # 初始化 STDP 累积缓冲区
+        self._stdp_buffer_multiplier = 0.0
+        self._stdp_update_step = 0
+        self._fusion_interval = 10 # 每10个token融合一次权重
         
         self._initialized = True
         logger.info("引擎初始化完成！")
         logger.info(f"停止符清单: {self.stop_token_ids}")
         logger.info(f"刷新周期: {self.config.refresh.refresh_period_ms}ms (100Hz)")
         logger.info(f"STDP学习率: LTP={self.config.stdp.alpha}, LTD={self.config.stdp.beta}")
+        logger.info(f"CPU线程设置: {torch.get_num_threads()}")
         
         return True
     
@@ -163,6 +180,7 @@ class TrulyIntegratedEngine:
         # 【核心架构原生约束】：海马体记忆召回 (Recall)
         # 1. 首先对当前 prompt 进行特征提取，作为召回线索
         memory_context = ""
+        cue_feature = None
         try:
             with torch.no_grad():
                 # 预先编码 prompt 以获得语义特征
@@ -188,14 +206,14 @@ class TrulyIntegratedEngine:
             f"当前日期和时间: {current_time_str}\n"
             f"你是一个类脑AI助手，由100Hz刷新频率的神经引擎驱动。请简洁地回答用户问题。\n\n"
             f"{memory_context}\n\n"
-            f"【推理规范】对于涉及金额、日期、数量的逻辑问题，必须严格执行：\n"
-            f"1. 识别并提取所有数字和时间信息。\n"
-            f"2. 判别各项费用的性质（租金、押金、服务费等）。\n"
-            f"3. 明确计算逻辑（如：总费用 = 租金 + 押金 + 卫生费）。\n"
-            f"4. 进行分步计算，最后输出结论。\n\n"
+            f"【推理规范】对于逻辑问题，必须严格执行：\n"
+            f"1. 提取已知数字与时间信息。\n"
+            f"2. 严格遵循数学和财务逻辑判断。\n"
+            f"3. 综合【海马体关联记忆(Context)】补充缺失关联。\n"
+            f"4. 若上下文提供具体数据，优先以此数据为准进行计算。\n\n"
             f"【示例】\n"
-            f"User: 1600元租了20天。合计2600元（含2400元押金和200元运费）。日租金和月租金是多少？\n"
-            f"Assistant: <think>1. 提取：20天租金未知(假设R)，押金2400，运费200，总计2600。\n2. 验证：2400+200=2600，刚好等于总计。说明这1600元租金可能已包含或需要判别。但题目说\"20天房租1600元\"，通常指这20天应付1600。\n3. 日租金 = 1600 / 20 = 80元/天。\n4. 月租金(30天) = 80 * 30 = 2400元。</think>日租金为80元/天，月租金为2400元。<|im_end|>\n"
+            f"User: 3月份20天房租1600元。押金2400元。月租金是多少？\n"
+            f"Assistant: <think>1. 提取信息：20天房租为1600元。\n2. 计算日租金：1600元 / 20天 = 80元/天。\n3. 计算月租金：按每月30天计算，80元/天 * 30天 = 2400元/月。\n4. 结论：月租金为2400元。押金信息为干扰项或另一问题。</think>根据计算，每天的租金为80元，则一个月的月租金（按30天计）为2400元。<|im_end|>\n"
             f"<|im_start|>user\n{prompt}<|im_end|>\n"
             f"<|im_start|>assistant\n<think>\n"
         )
@@ -263,7 +281,7 @@ class TrulyIntegratedEngine:
                 position_ids = torch.tensor([[current_position]], dtype=torch.long, device=self.device)
             
             # 执行刷新周期
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = self.model(
                     input_ids=input_ids if past_key_values is None else input_ids[:, -1:],
                     attention_mask=attention_mask,
@@ -277,22 +295,24 @@ class TrulyIntegratedEngine:
             hidden_state = outputs.hidden_states[-1][:, -1, :]
             past_key_values = outputs.past_key_values
             
-            # STDP学习
-            self._stdp_learn(hidden_state)
+            # STDP学习 (带缓冲机制)
+            self._stdp_learn_buffered(hidden_state)
             
-            # 采样优化: Repetition Penalty + Temperature + Top-P
-            # 1. Repetition Penalty (1.1)
-            for token_id in set(input_ids[0].tolist()):
-                score = logits[0, token_id]
-                if score > 0:
-                    logits[0, token_id] = score / 1.1
-                else:
-                    logits[0, token_id] = score * 1.1
+            # 采样优化: Vectorized Repetition Penalty + Temperature + Top-P
+            # 1. Vectorized Repetition Penalty (1.1)
+            if generated_tokens > 0:
+                # 使用 scatter_ 或直接索引进行矢量化
+                unique_tokens = input_ids[0].unique()
+                logits[0, unique_tokens] = torch.where(
+                    logits[0, unique_tokens] > 0,
+                    logits[0, unique_tokens] / 1.1,
+                    logits[0, unique_tokens] * 1.1
+                )
             
             # 2. Temperature (0.1 for logic precision)
             logits = logits / 0.1
             
-            # 3. Top-P (0.9)
+            # 3. Top-P (0.9) - 保持矢量化计算
             sorted_logits, sorted_indices = torch.sort(logits, descending=True)
             cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
             sorted_indices_to_remove = cumulative_probs > 0.9
@@ -335,33 +355,58 @@ class TrulyIntegratedEngine:
             
         # 【核心架构原生约束】：对话结束后的整句记忆巩固
         # 存入语义指针，方便后续回合通过 Recall 召回
-        if response_text.strip():
+        if response_text.strip() and cue_feature is not None:
             self.refresh_engine.hippocampus.encode_episode(
-                torch.randn(1, self.model.config.hidden_size).to(self.device), # 动态语义嵌入
+                cue_feature, # 动态语义嵌入
                 time.time() * 1000,
                 {'semantic_pointer': f"User: {prompt}\nAssistant: {response_text}"}
             )
     
-    def _stdp_learn(self, hidden_state: torch.Tensor):
-        """STDP在线学习 (矢量化优化版)"""
+    def _stdp_learn_buffered(self, hidden_state: torch.Tensor):
+        """STDP在线学习 (带权重复合缓存优化)"""
         # 计算激活强度
         activation = hidden_state.abs().mean().item()
         
-        # 模拟时序差（正数表示LTP）
+        # 模拟时序差
         delta_t = 5.0
         
-        # 计算更新量
+        # 计算单步更新强度
         update, update_type = self.refresh_engine.stdp.compute_update(delta_t, activation)
+        multiplier = update if update_type == STDPType.LTP else -update
         
-        # 矢量化应用到所有动态权重 (避免 Python 循环)
-        # 这里的计算量极大，使用 torch 操作而非循环遍历
+        # 累积到缓冲区
+        self._stdp_buffer_multiplier += multiplier
+        self._stdp_update_step += 1
+        
+        # 达到阈值或步数时，执行融合 (Weight Fusion)
+        if self._stdp_update_step >= self._fusion_interval:
+            self._fuse_dynamic_weights()
+            self._stdp_buffer_multiplier = 0.0
+            self._stdp_update_step = 0
+
+    def _fuse_dynamic_weights(self):
+        """核心 CPU 优化：双权重融合缓存 (Dual Weight Fusion Cache)"""
+        if self._stdp_buffer_multiplier == 0:
+            return
+            
         learning_rate = 0.0001
-        multiplier = learning_rate * update if update_type == STDPType.LTP else -learning_rate * update
+        total_multiplier = self._stdp_buffer_multiplier * learning_rate
         
         with torch.no_grad():
-            for name in self.refresh_engine.dynamic_weights:
-                # 直接在张量上操作
-                self.refresh_engine.dynamic_weights[name].add_(multiplier)
+            for name, param in self.model.named_parameters():
+                if name in self.refresh_engine.dynamic_weights:
+                    # 1. 更新动态偏置向量 (Dynamic Weights)
+                    self.refresh_engine.dynamic_weights[name].add_(total_multiplier)
+                    
+                    # 2. 融合到模型实体权重中 (Fusion Cache)
+                    # 公式: CurrentWeight = StaticWeight + DynamicWeight
+                    param.data.copy_(self._static_weights_backup[name] + self.refresh_engine.dynamic_weights[name])
+        
+        # logger.debug(f"已执行全量权重融合 (融合步数: {self._fusion_interval})")
+
+    def _stdp_learn(self, hidden_state: torch.Tensor):
+        """过时的逐步骤学习，已由 _stdp_learn_buffered 替代"""
+        self._stdp_learn_buffered(hidden_state)
     
     def get_statistics(self) -> Dict:
         """获取统计信息"""

@@ -125,28 +125,39 @@ class AttentionSTDP:
         contribution_scores: torch.Tensor
     ) -> torch.Tensor:
         """
-        计算注意力层的STDP更新
+        计算注意力层的STDP更新 (矢量化加速版)
         
         Args:
             attention_weights: 当前注意力权重 [batch, heads, seq_len]
             current_time: 当前时间戳
             context_times: 上下文token的时间戳列表
-            contribution_scores: 各上下文token的贡献度分数
+            contribution_scores: 各上下文token的贡献度分数 [batch, heads, seq_len]
             
         Returns:
             更新量张量
         """
+        # 转换为张量计算 delta_t
+        ctx_times_tensor = torch.tensor(context_times, device=attention_weights.device, dtype=attention_weights.dtype)
+        delta_t_tensor = current_time - ctx_times_tensor  # [seq_len]
+        
+        # 扩展维度进行广播操作
+        # delta_t_tensor: [seq_len] -> [batch, heads, seq_len]
         batch_size, num_heads, seq_len = attention_weights.shape
+        delta_t_expanded = delta_t_tensor.unsqueeze(0).unsqueeze(0).expand(batch_size, num_heads, seq_len)
+        
         updates = torch.zeros_like(attention_weights)
         
-        for i, ctx_time in enumerate(context_times):
-            delta_t = current_time - ctx_time
+        # 掩码分离时序窗口外、LTP、LTD的情况
+        valid_mask = torch.abs(delta_t_expanded) <= self.kernel.timing_window
+        ltp_mask = valid_mask & (delta_t_expanded > 0)
+        ltd_mask = valid_mask & (delta_t_expanded <= 0)
+        
+        # 计算更新幅度：基于向量化的指数公式
+        if ltp_mask.any():
+            updates[ltp_mask] = self.kernel.alpha * contribution_scores[ltp_mask] * torch.exp(-delta_t_expanded[ltp_mask] / self.kernel.timing_window)
             
-            for h in range(num_heads):
-                for b in range(batch_size):
-                    contribution = contribution_scores[b, h, i].item()
-                    update, stdp_type = self.kernel.compute_update(delta_t, contribution)
-                    updates[b, h, i] = update
+        if ltd_mask.any():
+            updates[ltd_mask] = -self.kernel.beta * contribution_scores[ltd_mask] * torch.exp(delta_t_expanded[ltd_mask] / self.kernel.timing_window)
         
         return updates
     
@@ -177,11 +188,11 @@ class FFNSTDP:
         activation_times: List[float]
     ) -> torch.Tensor:
         """
-        计算FFN层的STDP更新
+        计算FFN层的STDP更新 (矢量化加速版)
         
         Args:
-            hidden_states: 输入隐藏状态
-            output_states: 输出隐藏状态
+            hidden_states: 输入隐藏状态 [batch, seq_len, hidden_dim] 或 [hidden_dim]
+            output_states: 输出隐藏状态 [batch, seq_len, hidden_dim] 或 [hidden_dim]
             current_time: 当前时间戳
             activation_times: 各神经元的激活时间
             
@@ -193,10 +204,36 @@ class FFNSTDP:
         
         updates = torch.zeros_like(hidden_states)
         
-        for i, act_time in enumerate(activation_times):
-            delta_t = current_time - act_time
-            update, _ = self.kernel.compute_update(delta_t, contribution[i].item())
-            updates[:, i] = update
+        # 将 activation_times 转换为张量
+        act_times_tensor = torch.tensor(activation_times, device=hidden_states.device, dtype=hidden_states.dtype)
+        delta_t_tensor = current_time - act_times_tensor  # [hidden_dim] 可能是一维
+        
+        valid_mask = torch.abs(delta_t_tensor) <= self.kernel.timing_window
+        ltp_mask = valid_mask & (delta_t_tensor > 0)
+        ltd_mask = valid_mask & (delta_t_tensor <= 0)
+        
+        # contribution的形状取决于模型层输出，通常与hidden_states的最后一维大小相同。如果是多维，需要适当广播。
+        if contribution.dim() == 1:
+            contribution_expanded = contribution
+        else:
+            contribution_expanded = contribution.view(-1, contribution.shape[-1]).mean(dim=0)
+            
+        delta_t_flat = delta_t_tensor
+        
+        # 基于一维数组做特征列更新，然后广播到原始隐藏状态的形状
+        flat_updates = torch.zeros_like(delta_t_flat)
+        
+        if ltp_mask.any():
+            flat_updates[ltp_mask] = self.kernel.alpha * contribution_expanded[ltp_mask] * torch.exp(-delta_t_flat[ltp_mask] / self.kernel.timing_window)
+        if ltd_mask.any():
+            flat_updates[ltd_mask] = -self.kernel.beta * contribution_expanded[ltd_mask] * torch.exp(delta_t_flat[ltd_mask] / self.kernel.timing_window)
+            
+        # 如果 hidden_states 是二维/三维结构，将 flat_updates 广播对应到相应的激活层上
+        if hidden_states.dim() == 1:
+            updates = flat_updates
+        else:
+            # 假设最后一维对应于神经元级特征维度
+            updates = flat_updates.expand_as(hidden_states)
         
         return updates
     

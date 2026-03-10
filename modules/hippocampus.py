@@ -242,7 +242,9 @@ class CA3Region:
         
         # 特征索引（用于快速检索）
         self._feature_index: Optional[torch.Tensor] = None
+        self._feature_index_list: List[torch.Tensor] = []
         self._memory_ids: List[str] = []
+        self._index_dirty = False
     
     def store(
         self,
@@ -266,11 +268,18 @@ class CA3Region:
         # 动态控制：如果接近 2MB，强制清理
         current_size = len(self._memory_store) * (self.config.ec_feature_dim * 4 + 256) # 估算每个 Unit 大小
         if current_size >= self._max_ram_bytes - 1024 or len(self._memory_store) >= self.capacity:
-            # 移除最旧的记忆 (FIFO，类似人脑遗忘机制)
+            # 移除最旧的记忆 (FIFO)
             if self._memory_order:
                 oldest_id = self._memory_order.popleft()
                 if oldest_id in self._memory_store:
                     del self._memory_store[oldest_id]
+                    # 同步清理索引（重建成本较高，但在内存受限时必要）
+                    if oldest_id in self._memory_ids:
+                        idx = self._memory_ids.index(oldest_id)
+                        self._memory_ids.pop(idx)
+                        if self._feature_index is not None:
+                            # 标记失效，触发重建
+                            self._index_dirty = True
         
         # 创建记忆单元
         memory_unit = MemoryUnit(
@@ -288,8 +297,10 @@ class CA3Region:
         self._memory_store[memory_id] = memory_unit
         self._memory_order.append(memory_id)
         
-        # 更新索引
-        self._update_index(memory_id, features)
+        # 延迟更新索引：先放进 List，检索时再统一 Cat
+        self._memory_ids.append(memory_id)
+        self._feature_index_list.append(features.detach().clone().unsqueeze(0))
+        self._index_dirty = True
         
         return True
     
@@ -311,57 +322,51 @@ class CA3Region:
         if top_k is None:
             top_k = self.recall_top_k
         
-        if not self._memory_store:
+        if not self._memory_store or not self._memory_ids:
             return []
-        
-        # 确保cue是正确的形状
-        cue_flat = cue.flatten()
-        
-        # 计算与所有记忆的相似度
-        similarities = []
-        for memory_id, memory_unit in self._memory_store.items():
-            memory_flat = memory_unit.feature_vector.flatten()
             
-            # 处理维度不匹配的情况
-            if cue_flat.shape[0] != memory_flat.shape[0]:
-                # 使用较小的维度进行匹配
-                min_dim = min(cue_flat.shape[0], memory_flat.shape[0])
-                cue_compare = cue_flat[:min_dim]
-                memory_compare = memory_flat[:min_dim]
-            else:
-                cue_compare = cue_flat
-                memory_compare = memory_flat
+        # 核心优化：懒加载索引 (Avoid O(N^2) concatenation)
+        if self._index_dirty or self._feature_index is None:
+            # 如果发生了删除，需要根据 _memory_ids 完整重建
+            if len(self._feature_index_list) != len(self._memory_ids):
+                self._feature_index_list = [self._memory_store[mid].feature_vector.unsqueeze(0) for mid in self._memory_ids]
             
-            similarity = F.cosine_similarity(
-                cue_compare.unsqueeze(0),
-                memory_compare.unsqueeze(0)
-            ).item()
-            similarities.append((memory_id, similarity))
+            self._feature_index = torch.cat(self._feature_index_list, dim=0)
+            self._index_dirty = False
+            
+        # 确保cue是正确的形状 [1, feature_dim]
+        cue_flat = cue.flatten().unsqueeze(0)
         
-        # 排序并选择top-k
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        top_memories = similarities[:top_k]
+        # 采样优化：维度匹配与余弦计算
+        min_dim = min(cue_flat.shape[1], self._feature_index.shape[1])
+        cue_compare = cue_flat[:, :min_dim]
+        feature_compare = self._feature_index[:, :min_dim]
+        
+        similarities = F.cosine_similarity(cue_compare, feature_compare, dim=1)
+        
+        # 获取top-k
+        k = min(top_k, similarities.shape[0])
+        top_scores, top_indices = torch.topk(similarities, k)
         
         # 构建记忆锚点
         anchors = []
-        for memory_id, relevance in top_memories:
-            memory_unit = self._memory_store[memory_id]
+        for i in range(k):
+            idx = top_indices[i].item()
+            relevance = top_scores[i].item()
+            memory_id = self._memory_ids[idx]
             
-            # 更新访问计数
+            if memory_id not in self._memory_store:
+                continue
+                
+            memory_unit = self._memory_store[memory_id]
             memory_unit.access_count += 1
             memory_unit.last_access_time = time.time()
-            
-            # 创建门控信号
-            gate_signal = self._create_gate_signal(
-                memory_unit.feature_vector,
-                relevance
-            )
             
             anchor = MemoryAnchor(
                 anchor_id=f"anchor_{memory_id}",
                 memory_unit=memory_unit,
                 relevance_score=relevance,
-                gate_signal=gate_signal
+                gate_signal=self._create_gate_signal(memory_unit.feature_vector, relevance)
             )
             anchors.append(anchor)
         
