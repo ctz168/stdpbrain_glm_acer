@@ -1,12 +1,13 @@
-# 🧠 类人脑双系统全闭环AI架构
+# 🧠 类人脑双系统全闭环 AI 架构 (Neuromorphic AI)
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/your-repo/brain-like-ai)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/ctz168/stdpbrain_glm_acer)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
+[![Model](https://img.shields.io/badge/Base-Qwen3.5--0.8B-red.svg)](https://huggingface.co/Qwen/Qwen3.5-0.8B-Base)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
-**基于Qwen大模型的端侧类脑AI全栈开发方案**
+**基于 Qwen3.5-0.8B 的端侧「海马体-新皮层」双系统类人脑全栈开发方案**
 
 </div>
 
@@ -20,199 +21,125 @@
 
 ## 🚀 快速开始 (Google Colab)
 
-点击上方 **Open In Colab** 按钮，即可在云端一键部署并运行类脑 AI Telegram Bot。只需准备好您的 `TELEGRAM_BOT_TOKEN` 即可开始。
+点击上方 **Open In Colab** 按钮，即可在云端一键部署。
+1. 填入您的 `TELEGRAM_BOT_TOKEN`。
+2. 依次运行单元格，约 2 分钟后即可在 Telegram 与类脑 AI 互动。
 
 ---
 
 ## 📖 项目简介
 
-本项目是一套完整的「海马体-新皮层双系统类人脑AI架构」，实现与人脑同源的**"刷新即推理、推理即学习、学习即优化、记忆即锚点"**全闭环智能能力。
+本项目是一套完整的「海马体-新皮层双系统类人脑 AI 架构」，实现与人脑同源的 **"刷新即推理、推理即学习、学习即优化、记忆即锚点"** 全闭环智能能力。
+
+### 核心特性
+*   **⚡ 100Hz 刷新即推理**：固定 10ms 认知周期，模拟生物神经元的放电频率。
+*   **🧬 STDP 在线学习**：无需反向传播，在推理过程中通过脉冲时序依赖塑性（STDP）实时更新权重。
+*   **🧠 海马体记忆系统**：存储-计算分离，模拟 EC-DG-CA3-CA1 生物回路，严格限制 2MB RAM 占用。
+*   **🔄 自闭环优化**：通过模型自生成的候选方案进行自博弈与自评判，实现逻辑自我进化。
 
 ---
 
-## ✨ 核心模块
+## 🛠️ 安装指南
 
-### 🧠 海马体记忆系统 (`modules/hippocampus.py`)
+### 💻 1. 硬件与系统要求
+*   **操作系统**: Windows 10/11, macOS (Intel/M1/M2), Linux
+*   **内存**: ≥ 4GB RAM (模型运行时占用约 2.4GB)
+*   **存储**: ≥ 2GB 可用硬盘空间
+*   **Python**: 3.10 或更高版本
 
-| 组件 | 功能 | 实现状态 |
-|------|------|----------|
-| EC内嗅皮层 | 64维稀疏特征编码 | ✅ 完整实现 |
-| DG齿状回 | 模式分离，正交化处理 | ✅ 完整实现 |
-| CA3区 | 情景记忆存储与召回 | ✅ 完整实现 |
-| CA1区 | 时序编码与注意力门控 | ✅ 完整实现 |
-| SWR尖波涟漪 | 离线记忆巩固 | ✅ 完整实现 |
+### 🔧 2. 环境配置步骤
 
-### ⚡ STDP学习系统 (`modules/stdp_system.py`)
+#### Windows 用户
+```powershell
+# 1. 克隆项目
+git clone https://github.com/ctz168/stdpbrain_glm_acer.git
+cd stdpbrain_glm_acer
 
-| 组件 | 功能 | 实现状态 |
-|------|------|----------|
-| STDP核函数 | LTP/LTD时序权重更新 | ✅ 完整实现 |
-| 注意力STDP | 注意力权重动态更新 | ✅ 完整实现 |
-| FFN-STDP | 前馈网络权重更新 | ✅ 完整实现 |
-| 自评判STDP | 基于评判结果的权重更新 | ✅ 完整实现 |
-| 海马体门控STDP | 记忆锚点权重更新 | ✅ 完整实现 |
+# 2. 创建并激活虚拟环境
+python -m venv venv
+.\venv\Scripts\activate
 
-### 🔄 自闭环优化系统 (`modules/self_optimization.py`)
-
-| 模式 | 功能 | 实现状态 |
-|------|------|----------|
-| 自生成模式 | 多候选并行生成+加权投票 | ✅ 生产级实现 |
-| 自博弈模式 | 提案-验证迭代优化 | ✅ 生产级实现 |
-| 自评判模式 | 多维度评判选优 | ✅ 生产级实现 |
-
-#### 文本质量分析器
-
-```python
-from modules.self_optimization import TextQualityAnalyzer
-
-analyzer = TextQualityAnalyzer()
-
-# 逻辑结构分析
-structure = analyzer.analyze_logical_structure(text)
-# {'has_cause_effect': True, 'has_contrast': False, 'structure_score': 1.0}
-
-# 连贯性评估
-coherence = analyzer.calculate_coherence(text)  # 0.0-1.0
-
-# 错误检测
-errors = analyzer.detect_errors(text)
-
-# 指令遵循度检查
-score, issues = analyzer.check_instruction_following(response, instruction)
+# 3. 安装依赖
+pip install --upgrade pip
+pip install torch transformers accelerate sentencepiece flask faiss-cpu python-telegram-bot hf_transfer wikipedia-api
 ```
 
-### 🚀 刷新引擎 (`modules/refresh_engine.py`)
-
-| 特性 | 说明 |
-|------|------|
-| 刷新频率 | 100Hz (10ms周期) |
-| 注意力复杂度 | O(1) 窄窗口 |
-| KV缓存管理 | 支持连续生成 |
-
----
-
-## 🚀 快速开始
-
-### 安装
-
+#### Mac/Linux 用户
 ```bash
-# 克隆项目
-git clone https://github.com/your-repo/brain-like-ai.git
-cd brain-like-ai
+# 1. 克隆项目
+git clone https://github.com/ctz168/stdpbrain_glm_acer.git
+cd stdpbrain_glm_acer
 
-# 创建虚拟环境
+# 2. 创建并激活虚拟环境
 python3 -m venv venv
 source venv/bin/activate
 
-# 安装依赖
-pip install -r requirements.txt
-
-# 下载模型
-python scripts/download_model.py
+# 3. 安装依赖
+pip install --upgrade pip
+pip install torch transformers accelerate sentencepiece flask faiss-cpu python-telegram-bot hf_transfer wikipedia-api
 ```
 
-### 启动Telegram Bot
-
+### 📥 3. 下载模型权重 (高性能引擎)
+本项目内置了基于 `hf_transfer` 的快速下载脚本，通常在 1 分钟内完成：
 ```bash
-source venv/bin/activate
-python -m bot.telegram_bot
-```
-
-### Python API
-
-```python
-from core.engine import BrainLikeAIEngine, GenerationConfig
-
-# 初始化引擎
-engine = BrainLikeAIEngine('/path/to/model')
-engine.initialize()
-
-# 生成文本
-response = engine.generate('你好')
-
-# 流式生成
-for text in engine.generate_stream('请介绍一下自己'):
-    print(text, end='', flush=True)
-
-# 获取统计信息
-stats = engine.get_statistics()
-print(stats['hippocampus'])  # 海马体状态
-print(stats['stdp'])         # STDP状态
-print(stats['optimization']) # 优化系统状态
+python download_model.py
 ```
 
 ---
 
-## 📖 Bot命令
+## 🚀 运行服务
 
-| 命令 | 功能 |
-|------|------|
-| `/start` | 开始使用 |
-| `/help` | 帮助信息 |
-| `/stats` | 系统统计（海马体/STDP/优化状态） |
-| `/clear` | 清空海马体记忆 |
-| `/consolidate` | 执行离线记忆巩固 |
+### 1. 启动 Telegram 机器人
+在 `bot/telegram_bot.py` 中配置您的 Token，然后运行：
+```bash
+python -u bot/telegram_bot.py
+```
+*   **特性**: 实时流式响应、100Hz 认知状态显示、海马体记忆动态同步。
+
+### 2. 启动 Web 监控后台
+```bash
+python web/app.py
+```
+*   **地址**: `http://localhost:5000`
+*   **功能**: 可视化实时神经元评分、海马体存储状态及 STDP 学习曲线。
 
 ---
 
-## 📊 性能指标
+## ✨ 核心模块导航
 
-| 指标 | 目标值 | 实测值 |
-|------|--------|--------|
-| 模型大小 | ~1GB | 0.95GB |
-| 内存占用 | ~2.5GB | ~2.4GB |
-| 响应延迟 | <5s | ~2s |
-| 记忆召回准确率 | ≥95% | ~96% |
-| 逻辑结构检测 | 支持 | ✅ |
+| 模块 | 关键路径 | 实现功能 |
+| :--- | :--- | :--- |
+| **刷新引擎** | `core/truly_integrated_engine.py` | 10ms 采样周期、Repetition Penalty、Top-P 优化 |
+| **STDP 系统** | `modules/stdp_system.py` | 90% 静态/10% 动态权重切分、LTP/LTD 生物学习规则 |
+| **海马体系统** | `modules/hippocampus.py` | EC 编码、DG 模式分离、CA3 长效存储、CA1 门控控制 |
+| **优化器** | `modules/self_optimization.py` | 自博弈 (Self-Play)、自评判 (Self-Judgment) |
+| **知识检索** | `modules/wikipedia_tool.py` | 多线程 Wikipedia 实时搜索、存储-计算分离支持 |
 
 ---
 
 ## 📁 项目结构
-
-```
-brain_like_ai/
-├── core/
-│   ├── engine.py          # 生产级集成引擎
-│   ├── config.py          # 配置系统
-│   ├── base_model.py      # 基础模型
-│   └── ...
-├── modules/
-│   ├── hippocampus.py     # 海马体系统
-│   ├── stdp_system.py     # STDP学习
-│   ├── refresh_engine.py  # 刷新引擎
-│   └── self_optimization.py # 自闭环优化（生产级）
-├── bot/
-│   └── telegram_bot.py    # Bot服务
-├── models/
-│   └── Qwen3.5-0.8B/      # 模型权重
-├── main.py                # 主入口
-└── venv/                  # 虚拟环境
+```text
+stdpbrain_glm_acer/
+├── bot/                # Telegram 机器人交互层
+├── core/               # 核心执行引擎 (Refresh Engine & STDP Integration)
+├── modules/            # 生物模块 (海马体、STDP 核、优化器、Wiki工具)
+├── training/           # 专项训练与记忆巩固代码
+├── web/                # 可视化监控前端 (Flask + HTML/CSS)
+├── deploy_mac.sh       # Mac 一键部署脚本
+├── download_model.py   # 模型高速下载工具
+├── deploy_colab.ipynb  # Colab 一键部署笔记本
+└── README.md           # 项目综合文档
 ```
 
 ---
 
-## 🔧 开发指南
-
-### 测试模块
-
-```bash
-# 测试自闭环优化模块
-python -c "
-from modules.self_optimization import TextQualityAnalyzer
-analyzer = TextQualityAnalyzer()
-print(analyzer.analyze_logical_structure('因为下雨，所以带伞。'))
-"
-```
-
-### 运行Bot
-
-```bash
-source venv/bin/activate
-python -m bot.telegram_bot
-```
+## ⚠️ 开发者红线 (Developer Red Lines)
+为了确保类脑架构的纯正性，所有修改必须遵循：
+1. **底座不可更換**: 必须使用 Qwen3.5-0.8B-Base，禁止更换为 Chat 版或其他模型。
+2. **存算分离**: 知识库（Wiki）必须作为外部工具挂载，不得通过微调改写 Base 模型参数。
+3. **实时性优先**: 任何新增逻辑不得破坏 100Hz (10ms) 的主循环实时性。
 
 ---
 
 ## 📄 许可证
-
-MIT License
+MIT License.
