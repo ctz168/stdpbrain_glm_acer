@@ -30,7 +30,7 @@ def get_engine():
     if _engine is None:
         from core.ultimate_engine import UltimateEngine
         # 使用终极集成引擎
-        model_path = str(PROJECT_ROOT / "weights/Qwen3.5-0.8B")
+        model_path = str(PROJECT_ROOT / "weights/DeepSeek-R1-Distill-Qwen-1.5B")
         _engine = UltimateEngine(model_path)
     return _engine
 
