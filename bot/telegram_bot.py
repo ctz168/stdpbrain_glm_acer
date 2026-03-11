@@ -28,9 +28,10 @@ _engine = None
 def get_engine():
     global _engine
     if _engine is None:
-        from core.truly_integrated_engine import TrulyIntegratedEngine
-        model_path = str(PROJECT_ROOT / "weights/Qwen3.5-0.8B-Base")
-        _engine = TrulyIntegratedEngine(model_path)
+        from core.ultimate_engine import UltimateEngine
+        # 使用终极集成引擎
+        model_path = str(PROJECT_ROOT / "weights/DeepSeek-R1-Distill-Qwen-1.5B")
+        _engine = UltimateEngine(model_path)
     return _engine
 
 
