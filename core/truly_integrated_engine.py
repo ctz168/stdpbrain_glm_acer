@@ -118,11 +118,12 @@ class TrulyIntegratedEngine:
         cpu_count = multiprocessing.cpu_count()
         torch.set_num_threads(max(1, cpu_count // 2)) 
         
-        # 获取停止符
+        # 获取停止符 (DeepSeek-R1-Distill-Qwen 基于 Qwen 词表，停止符格式相同)
         self.stop_token_ids = [self.tokenizer.eos_token_id]
-        im_end_id = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
-        if im_end_id and im_end_id != self.tokenizer.unk_token_id:
-            self.stop_token_ids.append(im_end_id)
+        for stop_str in ["<|im_end|>", "<|end_of_sentence|>"]:
+            tok_id = self.tokenizer.convert_tokens_to_ids(stop_str)
+            if tok_id and tok_id != self.tokenizer.unk_token_id:
+                self.stop_token_ids.append(tok_id)
             
         # 预存静态权重备份，用于融合缓存 (Fusion Cache)
         self._static_weights_backup = {}
@@ -199,12 +200,12 @@ class TrulyIntegratedEngine:
         except Exception as e:
             logger.error(f"海马体召回失败: {e}")
 
-        # 构建输入 (针对Base模型增加日期引导)
+        # 构建输入 (DeepSeek-R1-Distill-Qwen 使用 Qwen 格式的 Chat Template)
         current_time_str = time.strftime("%Y-%m-%d %H:%M:%S")
         input_text = (
             f"<|im_start|>system\n"
             f"当前日期和时间: {current_time_str}\n"
-            f"你是一个类脑AI助手，由100Hz刷新频率的神经引擎驱动。请简洁地回答用户问题。\n\n"
+            f"你是一个类脑AI助手，底层由 DeepSeek-R1 强化推理引擎驱动，运行在100Hz刷新频率的神经引擎上。请清晰、简洁地回答用户问题，遇到数学/逻辑问题时请逐步推导。\n\n"
             f"{memory_context}\n\n"
             f"【推理规范】对于逻辑问题，必须严格执行：\n"
             f"1. 提取已知数字与时间信息。\n"

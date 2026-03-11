@@ -50,7 +50,7 @@ class BrainLikeAI:
         # 模型路径
         self.model_path = model_path or os.environ.get(
             "MODEL_PATH",
-            str(PROJECT_ROOT / "models" / "Qwen3.5-0.8B")
+            str(PROJECT_ROOT / "weights" / "DeepSeek-R1-Distill-Qwen-1.5B")
         )
         
         # 初始化引擎

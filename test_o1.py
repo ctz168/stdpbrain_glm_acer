@@ -13,7 +13,7 @@ from core.truly_integrated_engine import TrulyIntegratedEngine
 
 def test_o1_attention():
     print("Initializing engine...")
-    engine = TrulyIntegratedEngine(str(PROJECT_ROOT / "weights/Qwen3.5-0.8B-Base"))
+    engine = TrulyIntegratedEngine(str(PROJECT_ROOT / "weights/DeepSeek-R1-Distill-Qwen-1.5B"))
     engine.initialize()
     
     print("Testing generation (should trigger O(1) slicing)...")
