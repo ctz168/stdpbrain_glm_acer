@@ -29,7 +29,7 @@ def get_engine():
     global _engine
     if _engine is None:
         from core.truly_integrated_engine import TrulyIntegratedEngine
-        model_path = str(PROJECT_ROOT / "weights/Qwen3.5-0.8B-Base")
+        model_path = str(PROJECT_ROOT / "weights/DeepSeek-R1-Distill-Qwen-1.5B")
         _engine = TrulyIntegratedEngine(model_path)
     return _engine
 
