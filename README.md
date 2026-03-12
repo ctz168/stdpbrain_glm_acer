@@ -22,7 +22,7 @@
 ## 🚀 快速开始 (Google Colab)
 
 点击上方 **Open In Colab** 按钮，即可在云端一键部署。
-1. 填入您的 `TELEGRAM_BOT_TOKEN`。
+1. (https://colab.research.google.com/github/ctz168/stdpbrain/blob/glm/colab_stdpbrain_bot.ipynb)
 2. 依次运行单元格，约 3 分钟后即可在 Telegram 与类脑 AI 互动。
 
 ---
