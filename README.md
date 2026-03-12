@@ -15,16 +15,13 @@
 
 <div align="center">
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ctz168/stdpbrain/deploy_colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ctz168/stdpbrain/blob/main/deploy_colab.ipynb)
 
 </div>
 
 ## 🚀 快速开始 (Google Colab)
 
 点击上方 **Open In Colab** 按钮，即可在云端一键部署。
-1. (https://colab.research.google.com/github/ctz168/stdpbrain/colab_stdpbrain_bot.ipynb)
-2. 依次运行单元格，约 3 分钟后即可在 Telegram 与类脑 AI 互动。
-
 ---
 
 ## 📖 项目简介
